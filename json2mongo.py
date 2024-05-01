@@ -1,5 +1,4 @@
 import argparse
-
 import json
 
 import pymongo
@@ -27,15 +26,17 @@ def main(mongo_str: str, file_path: str, database: str, collection: str):
     except Exception as e:
         print(e)
 
-
-    # TODO: read JSON file and insert into MongoDB
     data_list = []
     with open(file_path, 'r') as f:
         data_list = [json.loads(line.strip()) for line in f]
     db = client[database]
     table = db[collection]
-    for data in data_list:
-        table.replace_one({"host": data["host"]}, data, upsert=True)
+
+    try:
+        for data in data_list:
+            table.replace_one({"host": data["host"]}, data, upsert=True)
+    except pymongo.errors.ServerSelectionTimeoutError as e:
+        print(f"Please check your MongoDB connection\n{e}")
 
     if client:
         client.close()
