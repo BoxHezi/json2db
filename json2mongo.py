@@ -8,6 +8,10 @@ def init_argparse():
     args = argparse.ArgumentParser(description="Insert JSON data into MongoDB", formatter_class=argparse.RawTextHelpFormatter)
     args.add_argument("-a", "--address", default="127.0.0.1", help="MongoDB host address")
     args.add_argument("-p", "--port", default=27017, help="MongoDB port")
+
+    args.add_argument("-u", "--user", help="MongoDB username")
+    args.add_argument("-P", "--password", help="MongoDB password")
+
     args.add_argument("-d", "--database", help="Specificing database name", required=True)
     args.add_argument("-c", "--collection", help="Specificing collection name", required=True)
     args.add_argument("-f", "--file", help="JSON file path", required=True)
@@ -15,8 +19,11 @@ def init_argparse():
     return args.parse_args()
 
 
-def construct_mongo_uri(address, port):
+def construct_mongo_uri(address, port, user: str = None, password: str = None):
+    if user and password:
+        return f"mongodb://{user}:{password}@{address}:{port}"
     return f"mongodb://{address}:{port}"
+
 
 
 def main(mongo_str: str, file_path: str, database: str, collection: str):
@@ -37,6 +44,8 @@ def main(mongo_str: str, file_path: str, database: str, collection: str):
             table.replace_one({"host": data["host"]}, data, upsert=True)
     except pymongo.errors.ServerSelectionTimeoutError as e:
         print(f"Please check your MongoDB connection\n{e}")
+    except pymongo.errors.OperationFailure as e:
+        print(f"Connection required authentication\n{e}")
 
     if client:
         client.close()
@@ -44,6 +53,6 @@ def main(mongo_str: str, file_path: str, database: str, collection: str):
 
 if __name__ == "__main__":
     args = init_argparse()
-    mongo_str = construct_mongo_uri(args.address, args.port)
+    mongo_str = construct_mongo_uri(args.address, args.port, args.user, args.password)
     main(mongo_str, args.file, args.database, args.collection)
 
