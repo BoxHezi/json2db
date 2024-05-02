@@ -80,7 +80,3 @@ if __name__ == "__main__":
     mongo_str = construct_mongo_uri(args.address, args.port, args.user, args.password)
     main(mongo_str, args.file, args.database, args.collection, args.key)
 
-    # DEBUG for different type JSON contents
-    # read_file_content("./1_vulns_ips_http_non_cdn_asn_10148.json")
-    # read_file_content("./dnsx_unimelb.edu.au.json")
-
