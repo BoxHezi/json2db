@@ -1,8 +1,8 @@
+import urllib.parse
 import argparse
 import json
 
 import pymongo
-import pymongo.database
 from tqdm import tqdm
 
 
@@ -24,7 +24,9 @@ def init_argparse():
 
 def construct_mongo_uri(address, port, user: str = None, password: str = None):
     if user and password:
-        return f"mongodb://{user}:{password}@{address}:{port}"
+        encoded_user = urllib.parse.quote_plus(user)
+        encoded_password = urllib.parse.quote_plus(password)
+        return f"mongodb://{encoded_user}:{encoded_password}@{address}:{port}"
     return f"mongodb://{address}:{port}"
 
 
@@ -41,12 +43,9 @@ def main(mongo_str: str, file_path: str, database: str, collection: str, key: st
     table = db[collection]
 
     try:
-        if check_collection_exist(db, collection):
+        if key and check_collection_exist(db, collection):
             for data in tqdm(data_list):
-                if key:
-                    table.replace_one({key: data[key]}, data, upsert=True)
-                else:
-                    table.insert_one(data)
+                table.replace_one({key: data[key]}, data, upsert=True)
         else:
             # use insert_many for the first inseration
             table.insert_many(data_list)
