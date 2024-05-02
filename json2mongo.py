@@ -2,6 +2,7 @@ import argparse
 import json
 
 import pymongo
+import pymongo.database
 from tqdm import tqdm
 
 
@@ -35,15 +36,20 @@ def main(mongo_str: str, file_path: str, database: str, collection: str, key: st
         print(e)
 
     data_list = read_file_content(file_path)
+    print(f"Finish Loading, total {len(data_list)} records loaded")
     db = client[database]
     table = db[collection]
 
     try:
-        for data in tqdm(data_list):
-            if key:
-                table.replace_one({key: data[key]}, data, upsert=True)
-            else:
-                table.insert_one(data)
+        if check_collection_exist(db, collection):
+            for data in tqdm(data_list):
+                if key:
+                    table.replace_one({key: data[key]}, data, upsert=True)
+                else:
+                    table.insert_one(data)
+        else:
+            # use insert_many for the first inseration
+            table.insert_many(data_list)
     except pymongo.errors.ServerSelectionTimeoutError as e:
         print(f"Please check your MongoDB connection\n{e}")
     except pymongo.errors.OperationFailure as e:
@@ -53,7 +59,13 @@ def main(mongo_str: str, file_path: str, database: str, collection: str, key: st
         client.close()
 
 
+def check_collection_exist(db: pymongo.database.Database, collection: str) -> bool:
+    # check if collection already exist in database
+    return collection in db.list_collection_names()
+
+
 def read_file_content(file_path: str) -> list[dict]:
+    print(f"Loading JSON file: {file_path}")
     try:
         with open(file_path, "r") as f:
             try:
