@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 def init_argparse():
     args = argparse.ArgumentParser(description="Insert JSON data into MongoDB", formatter_class=argparse.RawTextHelpFormatter)
-    args.add_argument("-a", "--address", default="127.0.0.1", help="MongoDB host address")
-    args.add_argument("-p", "--port", default=27017, help="MongoDB port")
+    args.add_argument("-a", "--address", default="127.0.0.1", help="MongoDB host address, default 127.0.0.1")
+    args.add_argument("-p", "--port", default=27017, help="MongoDB port, default 27017")
 
     args.add_argument("-u", "--user", help="MongoDB username")
     args.add_argument("-P", "--password", help="MongoDB password")

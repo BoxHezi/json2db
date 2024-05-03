@@ -12,8 +12,8 @@ Insert JSON data into MongoDB
 options:
   -h, --help            show this help message and exit
   -a ADDRESS, --address ADDRESS
-                        MongoDB host address
-  -p PORT, --port PORT  MongoDB port
+                        MongoDB host address, default 127.0.0.1
+  -p PORT, --port PORT  MongoDB port, default 27017
   -u USER, --user USER  MongoDB username
   -P PASSWORD, --password PASSWORD
                         MongoDB password
