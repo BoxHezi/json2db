@@ -2,7 +2,6 @@ import argparse
 import psycopg2
 import json
 
-import psycopg2._psycopg
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
@@ -14,16 +13,15 @@ def init_argparse():
     args.add_argument("-u", "--user", help="MongoDB username")
     args.add_argument("-P", "--password", help="MongoDB password")
 
-    # args.add_argument("-k", "--key", help="Specificing key to check for upsert operation\nIf not specified, all records will be inserted")
+    args.add_argument("-k", "--key", help="Specificing key to use as primary key in psql, the key must be existed in input json data", required=True)
     args.add_argument("-d", "--database", help="Specificing database name", required=True)
     args.add_argument("-t", "--table", help="Specificing table name", required=True)
-    # args.add_argument("-c", "--collection", help="Specificing collection name", required=True)
     args.add_argument("-f", "--file", help="JSON file path", required=True)
 
     return args.parse_args()
 
 
-def connect(database, user, password, server, port) -> psycopg2._psycopg.connection | None:
+def connect(database, user, password, server, port):
     connection = None
     try:
         connection = psycopg2.connect(
@@ -47,7 +45,7 @@ def connect(database, user, password, server, port) -> psycopg2._psycopg.connect
         return None
 
 
-def check_table_existence(connection: psycopg2._psycopg.connection, table):
+def check_table_existence(connection, table):
     cursor = connection.cursor()
 
     query = f"""SELECT EXISTS (SELECT FROM information_schema.tables
@@ -61,11 +59,11 @@ def check_table_existence(connection: psycopg2._psycopg.connection, table):
     return result
 
 
-def create_table(connection: psycopg2._psycopg.connection, name, key_col):
+def create_table(connection, name, key_col):
     cursor = connection.cursor()
 
     try:
-        query = f"CREATE TABLE {name} ({key_col} varchar(15) NOT NULL primary key, data json);"
+        query = f"CREATE TABLE {name} ({key_col} varchar NOT NULL primary key, data json);"
         cursor.execute(query)
     except Exception as e:
         print(e)
@@ -89,7 +87,7 @@ def read_file_content(file_path: str) -> list[dict]:
         print(f"File not found: {file_path}")
 
 
-def extract_key_for_json_data(json_data, key = "ip"):
+def extract_key_for_json_data(json_data, key):
     """
     extra key from json_data (list of dict) so that the data can be inserted to psql
     """
@@ -104,35 +102,31 @@ def extract_key_for_json_data(json_data, key = "ip"):
     return results
 
 
-def main(database, table, user, password, file_path, host, port):
-    client = connect(database, user, password, host, port)
-    print(client)
-
+def main(client, table, file_path, key):
     # TODO: check insert many for psql in python
     new_table = False # flag to indicate if table is newly created. True => insert many; False => upsert one by one
 
     # create table if not exists
     table_exist = check_table_existence(client, table)
     if not table_exist:
-        create_table(client, table, "ip")
+        create_table(client, table, key)
         new_table = True
 
     # TODO: read json file and insert to database
     json_data = read_file_content(file_path)
-    ready2insert = extract_key_for_json_data(json_data)
+    ready2insert = extract_key_for_json_data(json_data, key)
 
     # TODO: extract this into a function
     for data in ready2insert:
         cursor = client.cursor()
-        cursor.execute(f"INSERT INTO {table} (ip, data) VALUES ('{data['ip']}', '{json.dumps(data['data'])}');")
+        cursor.execute(f"INSERT INTO {table} ({key}, data) VALUES ('{data[key]}', '{json.dumps(data['data'])}');")
 
     client.commit()
 
-    # TODO: add command line support to indicate which key-value pair from input json as key in psql
-
-    if client:
-        client.close()
-
 if __name__ == "__main__":
     args = init_argparse()
-    main(args.database, args.table, args.user, args.password, args.file, args.address, args.port)
+    client = connect(args.database, args.user, args.password, args.address, args.port)
+
+    if client:
+        main(client, args.table, args.file, args.key)
+        client.close()
