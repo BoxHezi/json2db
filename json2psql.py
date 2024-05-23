@@ -148,6 +148,17 @@ def insert_one(client, table, key, data):
             print(e)
 
 
+def upsert(client, table, key, data):
+    with client.cursor() as cursor:
+        try:
+            for d in data:
+                cursor.execute(f"INSERT INTO {table} ({key}, data) VALUES ('{d[key]}', '{json.dumps(d['data'])}') ON CONFLICT ({key}) DO UPDATE SET data = '{json.dumps(d['data'])}';")
+
+            client.commit()
+        except Exception as e:
+            print(e)
+
+
 def main(client, table, file_path, key):
     new_table = False # flag to indicate if table is newly created. True => insert many; False => upsert one by one
 
@@ -163,8 +174,8 @@ def main(client, table, file_path, key):
         # new table, insert data
         insert_many(client, table, key, ready2insert)
     else:
-        # TODO: upsert
-        pass
+        # upsert
+        upsert(client, table, key, ready2insert)
 
 if __name__ == "__main__":
     args = init_argparse()
