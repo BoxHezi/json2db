@@ -90,6 +90,13 @@ def read_file_content(file_path: str) -> list[dict]:
 def extract_key_for_json_data(json_data, key):
     """
     extra key from json_data (list of dict) so that the data can be inserted to psql
+
+    return data format: `
+    {
+        "{key}": json[key],
+        "data":  json
+    }
+    `
     """
     results = []
 
@@ -102,8 +109,46 @@ def extract_key_for_json_data(json_data, key):
     return results
 
 
+def expand_data_for_insert(data, key) -> tuple:
+    """
+    convert dict/json to list, in order to insert multiple rows in one query
+    """
+    return [(d[key], json.dumps(d["data"])) for d in data]
+
+
+def parse_input_file(file_path, key):
+    """
+    wash input file data so that the format can be matched with database schema
+    """
+    file_content = read_file_content(file_path)
+    return extract_key_for_json_data(file_content, key)
+
+
+def insert_many(client, table, key, data):
+    with client.cursor() as cursor:
+        try:
+            v = expand_data_for_insert(data, key)
+            v = ",".join(cursor.mogrify("(%s,%s)", d).decode("utf-8") for d in v)
+            cursor.execute(f"INSERT INTO {table} ({key}, data) VALUES {v};")
+
+            # commit if no exception
+            client.commit()
+        except Exception as e:
+            print(e)
+
+
+def insert_one(client, table, key, data):
+    with client.cursor() as cursor:
+        try:
+            cursor.execute(f"INSERT INTO {table} ({key}, data) VALUES ('{data[key]}', '{json.dumps(data['data'])}');")
+
+            # commit if no exception
+            client.commit()
+        except Exception as e:
+            print(e)
+
+
 def main(client, table, file_path, key):
-    # TODO: check insert many for psql in python
     new_table = False # flag to indicate if table is newly created. True => insert many; False => upsert one by one
 
     # create table if not exists
@@ -112,16 +157,14 @@ def main(client, table, file_path, key):
         create_table(client, table, key)
         new_table = True
 
-    # TODO: read json file and insert to database
-    json_data = read_file_content(file_path)
-    ready2insert = extract_key_for_json_data(json_data, key)
+    ready2insert = parse_input_file(file_path, key)
 
-    # TODO: extract this into a function
-    for data in ready2insert:
-        cursor = client.cursor()
-        cursor.execute(f"INSERT INTO {table} ({key}, data) VALUES ('{data[key]}', '{json.dumps(data['data'])}');")
-
-    client.commit()
+    if new_table:
+        # new table, insert data
+        insert_many(client, table, key, ready2insert)
+    else:
+        # TODO: upsert
+        pass
 
 if __name__ == "__main__":
     args = init_argparse()
