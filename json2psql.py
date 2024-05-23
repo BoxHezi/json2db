@@ -10,8 +10,8 @@ def init_argparse():
     args.add_argument("-a", "--address", default="127.0.0.1", help="Postgres host address, default 127.0.0.1")
     args.add_argument("-p", "--port", default=5432, help="Portgres port, default 5432")
 
-    args.add_argument("-u", "--user", help="MongoDB username")
-    args.add_argument("-P", "--password", help="MongoDB password")
+    args.add_argument("-u", "--user", help="Auth username")
+    args.add_argument("-P", "--password", help="Auth password")
 
     args.add_argument("-k", "--key", help="Specificing key to use as primary key in psql, the key must be existed in input json data", required=True)
     args.add_argument("-d", "--database", help="Specificing database name", required=True)
