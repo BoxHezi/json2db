@@ -87,26 +87,14 @@ def read_file_content(file_path: str) -> list[dict]:
         print(f"File not found: {file_path}")
 
 
-def extract_key_for_json_data(json_data, key):
+def extract_data_with_key(data, key):
     """
-    extra key from json_data (list of dict) so that the data can be inserted to psql
+    Extracts key from data (list of dict) and returns it along with the data.
 
-    return data format: `
-    {
-        "{key}": json[key],
-        "data":  json
-    }
-    `
+    Returns:
+        List of dicts. Each dict contains key and data fields.
     """
-    results = []
-
-    for i in range(len(json_data)):
-        temp = {
-            f"{key}": json_data[i][f"{key}"],
-            "data": json_data[i]
-        }
-        results.append(temp)
-    return results
+    return [{key: item[key], 'data': item} for item in data]
 
 
 def expand_data_for_insert(data, key) -> tuple:
@@ -121,7 +109,7 @@ def parse_input_file(file_path, key):
     wash input file data so that the format can be matched with database schema
     """
     file_content = read_file_content(file_path)
-    return extract_key_for_json_data(file_content, key)
+    return extract_data_with_key(file_content, key)
 
 
 def insert_many(client, table, key, data):
